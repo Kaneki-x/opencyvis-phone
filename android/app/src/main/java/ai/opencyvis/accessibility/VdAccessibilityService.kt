@@ -19,7 +19,12 @@ class VdAccessibilityService : AccessibilityService() {
             private set
 
         fun captureViewTree(displayId: Int, displayWidth: Int, displayHeight: Int): String? {
-            return instance?.captureViewTreeInternal(displayId, displayWidth, displayHeight)
+            val service = instance
+            if (service == null) {
+                Log.w(TAG, "captureViewTree: accessibility service not connected (instance=null) — enable VdAccessibilityService to give the model element bounds")
+                return null
+            }
+            return service.captureViewTreeInternal(displayId, displayWidth, displayHeight)
         }
 
         fun getTopPackageOnDisplay(displayId: Int): String? {

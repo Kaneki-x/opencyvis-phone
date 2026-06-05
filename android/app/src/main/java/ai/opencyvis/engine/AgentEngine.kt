@@ -337,6 +337,8 @@ class AgentEngine(
                 } else null
                 if (viewTree != null) {
                     Log.i(TAG, "Step $step ViewTree: ${viewTree.length} chars, ${viewTree.lines().size} nodes")
+                } else if (viewTreeProvider != null) {
+                    Log.w(TAG, "Step $step ViewTree: null (a11y element tree unavailable — model is guessing from the screenshot only)")
                 }
 
                 // Detect unchanged screen after side-effect action (viewTree-based)
