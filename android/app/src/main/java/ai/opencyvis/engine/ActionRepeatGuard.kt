@@ -14,14 +14,19 @@ import kotlin.math.abs
  * bottom-right "发送") used to be treated identically to a genuinely stuck loop:
  * the next near-identical retry was hard-blocked, wasting several steps until the
  * model happened to jitter the coordinate far enough on its own. To recover from
- * such near-misses automatically, the guard now nudges the retry toward the screen
- * centre a few times (walking it off the edge / onto the button interior) before
- * giving up and escalating to the model.
+ * such near-misses automatically, the guard nudges the retry around the anchor
+ * with a small bidirectional vertical search (first toward the screen centre, then
+ * past the anchor the other way) before giving up and escalating to the model.
+ * The model misses small buttons either above or below, so a single-direction
+ * nudge can push an already-too-high tap even further off; searching both sides
+ * fixes that. Downward nudges are capped at [safeYMax] so a bottom-button retry
+ * never drops into the system gesture/navigation strip (which can trigger Recents).
  */
 class ActionRepeatGuard(
     private val tapTolerance: Int = 35,
     private val maxTapNudges: Int = 3,
-    private val nudgeStep: Int = 28
+    private val nudgeStep: Int = 28,
+    private val safeYMax: Int = 935
 ) {
 
     sealed class Decision {
@@ -34,7 +39,7 @@ class ActionRepeatGuard(
     private var lastScreenBeforeAction: ScreenFingerprint? = null
     private var consecutiveBlocks: Int = 0
 
-    // Anchor = the first tap that missed; nudges walk away from it toward centre.
+    // Anchor = the first tap that missed; nudges search vertically around it.
     private var tapAnchor: Pair<Int, Int>? = null
     private var tapNudgeCount: Int = 0
 
@@ -57,7 +62,7 @@ class ActionRepeatGuard(
                     val anchor = tapAnchor ?: reference.also { tapAnchor = it }
                     tapNudgeCount += 1
                     consecutiveBlocks = 0
-                    val nudged = nudgeTowardCenter(candidate, anchor, tapNudgeCount)
+                    val nudged = nudgeForRetry(candidate, anchor, tapNudgeCount)
                         ?: return block(LlmPrompts.guardFeedback("repeated_tap"))
                     return Decision.Allow(nudged)
                 }
@@ -120,28 +125,36 @@ class ActionRepeatGuard(
     }
 
     /**
-     * Nudge a tap from [anchor] toward the screen centre by an escalating offset.
-     * Coordinates are normalized (0..1000), so the centre is 500. The walk never
-     * crosses the centre on either axis.
+     * Nudge a tap around [anchor] with a bidirectional vertical search.
+     *
+     * Coordinates are normalized (0..1000), centre is 500. The vertical offset
+     * grows every two attempts and alternates side: toward centre on odd attempts,
+     * past the anchor on even ones (-1, +1, -2, +2, … × [nudgeStep]). This covers
+     * misses both above and below a small button. The y result is capped at
+     * [safeYMax] so a downward retry on a bottom button never enters the gesture
+     * strip. The x is nudged once toward centre to clear the side edge, then held,
+     * keeping the search essentially vertical.
      */
-    private fun nudgeTowardCenter(action: Action, anchor: Pair<Int, Int>, attempt: Int): Action? {
-        val offset = nudgeStep * attempt
-        val nx = nudgeAxis(anchor.first, offset)
-        val ny = nudgeAxis(anchor.second, offset)
+    private fun nudgeForRetry(action: Action, anchor: Pair<Int, Int>, attempt: Int): Action? {
+        val center = 500
+        val magnitude = nudgeStep * ((attempt + 1) / 2)
+        val towardCenter = attempt % 2 == 1
+        val baseDirY = if (anchor.second >= center) -1 else 1
+        val dirY = if (towardCenter) baseDirY else -baseDirY
+        val ny = (anchor.second + dirY * magnitude).coerceIn(0, safeYMax)
+
+        val dirX = when {
+            anchor.first > center -> -1
+            anchor.first < center -> 1
+            else -> 0
+        }
+        val nx = (anchor.first + dirX * nudgeStep).coerceIn(0, 1000)
+
         if (nx == anchor.first && ny == anchor.second) return null
         return when (action) {
             is Action.Tap -> action.copy(x = nx, y = ny)
             is Action.LongPress -> action.copy(x = nx, y = ny)
             else -> null
-        }
-    }
-
-    private fun nudgeAxis(value: Int, offset: Int): Int {
-        val center = 500
-        return when {
-            value > center -> (value - offset).coerceIn(center, 1000)
-            value < center -> (value + offset).coerceIn(0, center)
-            else -> value
         }
     }
 

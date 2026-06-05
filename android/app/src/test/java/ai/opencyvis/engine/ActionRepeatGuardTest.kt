@@ -45,26 +45,41 @@ class ActionRepeatGuardTest {
     }
 
     @Test
-    fun `nearby repeated tap is first nudged toward center then blocked`() {
-        val guard = ActionRepeatGuard(tapTolerance = 35, maxTapNudges = 2)
-        // Bottom-right miss (like WeChat 发送): nudges should walk up-left toward centre.
-        guard.recordExecuted(Action.Tap(900, 950), sameScreen)
+    fun `repeated bottom tap searches up then down then blocks`() {
+        val guard = ActionRepeatGuard(tapTolerance = 35, maxTapNudges = 2, nudgeStep = 28)
+        // Bottom-right miss (like WeChat 发送): the model may miss above OR below,
+        // so the search goes toward centre first, then past the anchor downward.
+        guard.recordExecuted(Action.Tap(900, 900), sameScreen)
 
-        val first = guard.evaluate(Action.Tap(905, 945), sameScreen)
+        val first = guard.evaluate(Action.Tap(905, 905), sameScreen)
         assertTrue(first is ActionRepeatGuard.Decision.Allow)
         val nudged1 = (first as ActionRepeatGuard.Decision.Allow).action as Action.Tap
-        assertTrue("nudge should move toward centre", nudged1.x < 900 && nudged1.y < 950)
+        assertTrue("first nudge moves up toward centre", nudged1.y < 900)
+        assertTrue("x is pulled in from the right edge", nudged1.x < 900)
         guard.recordExecuted(nudged1, sameScreen)
 
-        val second = guard.evaluate(Action.Tap(905, 945), sameScreen)
+        val second = guard.evaluate(Action.Tap(905, 905), sameScreen)
         assertTrue(second is ActionRepeatGuard.Decision.Allow)
         val nudged2 = (second as ActionRepeatGuard.Decision.Allow).action as Action.Tap
-        assertTrue("second nudge walks further toward centre", nudged2.x < nudged1.x && nudged2.y < nudged1.y)
+        assertTrue("second nudge searches the other side (below the anchor)", nudged2.y > 900)
         guard.recordExecuted(nudged2, sameScreen)
 
-        val third = guard.evaluate(Action.Tap(905, 945), sameScreen)
+        val third = guard.evaluate(Action.Tap(905, 905), sameScreen)
         assertTrue(third is ActionRepeatGuard.Decision.Block)
         assertTrue((third as ActionRepeatGuard.Decision.Block).feedback.contains("ask_user"))
+    }
+
+    @Test
+    fun `downward nudge never enters the bottom gesture strip`() {
+        val guard = ActionRepeatGuard(tapTolerance = 35, maxTapNudges = 4, nudgeStep = 28, safeYMax = 935)
+        guard.recordExecuted(Action.Tap(900, 950), sameScreen)
+        repeat(4) {
+            val d = guard.evaluate(Action.Tap(900, 950), sameScreen)
+            assertTrue(d is ActionRepeatGuard.Decision.Allow)
+            val t = (d as ActionRepeatGuard.Decision.Allow).action as Action.Tap
+            assertTrue("nudged y must stay out of the bottom strip", t.y <= 935)
+            guard.recordExecuted(t, sameScreen)
+        }
     }
 
     @Test
