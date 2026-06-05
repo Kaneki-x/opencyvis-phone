@@ -2,6 +2,8 @@ __pycache__/
 *.pyc
 *.pyo
 .env
+.idea/
+.qoder/
 
 # Android
 android/.gradle/
@@ -13,3 +15,4 @@ android/app/libs/framework-stubs.jar
 .superpowers/
 android/app/.cxx/
 android/build/
+android/.idea/

@@ -827,10 +827,58 @@ class ViewActivity : AppCompatActivity() {
         val displayId = vdm.displayId
         if (displayId == -1) return
 
-        val injected = MotionEvent.obtain(event)
-        val result = InputInjector.injectToDisplay(this, injected, displayId)
-        Log.d(TAG, "Injected touch to display $displayId: result=$result action=${event.action} x=${event.x} y=${event.y}")
-        injected.recycle()
+        val svWidth = surfaceView.width.toFloat()
+        val svHeight = surfaceView.height.toFloat()
+        val vdWidth = vdm.width.toFloat()
+        val vdHeight = vdm.height.toFloat()
+
+        // Fallback: if SurfaceView hasn't been laid out yet, inject without scaling
+        if (svWidth <= 0f || svHeight <= 0f || vdWidth <= 0f || vdHeight <= 0f) {
+            val injected = MotionEvent.obtain(event)
+            val result = InputInjector.injectToDisplay(this, injected, displayId)
+            Log.d(TAG, "Injected touch (no scale) to display $displayId: result=$result action=${event.action} x=${event.x} y=${event.y}")
+            injected.recycle()
+            return
+        }
+
+        val scaleX = svWidth / vdWidth
+        val scaleY = svHeight / vdHeight
+
+        // Build mapped pointer coordinates for all pointers (multi-touch support)
+        val pointerCount = event.pointerCount
+        val pointerProperties = Array(pointerCount) { i ->
+            MotionEvent.PointerProperties().also { event.getPointerProperties(i, it) }
+        }
+        val pointerCoords = Array(pointerCount) { i ->
+            MotionEvent.PointerCoords().also { coords ->
+                event.getPointerCoords(i, coords)
+                coords.x /= scaleX
+                coords.y /= scaleY
+            }
+        }
+
+        val mappedEvent = MotionEvent.obtain(
+            event.downTime,
+            event.eventTime,
+            event.action,
+            pointerCount,
+            pointerProperties,
+            pointerCoords,
+            event.metaState,
+            event.buttonState,
+            event.xPrecision / scaleX,
+            event.yPrecision / scaleY,
+            event.deviceId,
+            event.edgeFlags,
+            event.source,
+            event.flags
+        )
+
+        val result = InputInjector.injectToDisplay(this, mappedEvent, displayId)
+        Log.d(TAG, "Injected touch to display $displayId: result=$result action=${event.action} " +
+            "raw=(${event.x}, ${event.y}) mapped=(${mappedEvent.x}, ${mappedEvent.y}) " +
+            "scale=($scaleX, $scaleY) sv=${svWidth.toInt()}x${svHeight.toInt()} vd=${vdWidth.toInt()}x${vdHeight.toInt()}")
+        mappedEvent.recycle()
     }
 
     private fun setupTakeoverKeyboardProxy() {

@@ -35,7 +35,7 @@ object LlmPrompts {
 Rules:
 1. Carefully observe the screenshot, identify text, icons, and layout on the screen
 2. Perform actions using the phone_action tool
-3. Coordinate system: 0-1000 normalized, (0,0)=top-left, (1000,1000)=bottom-right
+3. Coordinate system: 0-1000 normalized, (0,0)=top-left, (1000,1000)=bottom-right. The screenshot width is 540px. Always use normalized coordinates (0-1000), NOT pixel values.
 4. When the task is completed (you see the target page), use finish, and write the ACTUAL RESULT in the thought field — include specific data you found (prices, weather, search results, etc.). Do NOT just say "I can summarize" or "task completed"; the thought IS the final answer shown to the user
 5. If unable to complete, use fail and explain the reason
 6. When encountering obstacles, uncertain about user intent, or needing additional information, prefer using ask_user to ask the user for help rather than failing directly; only use fail when the user clearly cannot help or the task is truly impossible
@@ -70,7 +70,7 @@ Routine & schedule rules:
 规则：
 1. 仔细观察截图，识别屏幕上的文字、图标和布局
 2. 通过 phone_action 工具执行操作
-3. 坐标系：0-1000 归一化，(0,0)=左上角，(1000,1000)=右下角
+3. 坐标系：0-1000 归一化，(0,0)=左上角，(1000,1000)=右下角。截图宽度为540px。请始终使用归一化坐标(0-1000)，而非像素值。
 4. 如果任务已完成（看到目标页面），用 finish，并在 thought 中写出具体的查询结果（如实际的天气数据、价格、搜索结果等）。不要只写"可以总结"或"任务完成"，thought 就是展示给用户的最终答案
 5. 如果无法完成，用 fail 并说明原因
 6. 遇到障碍、不确定用户意图或需要额外信息时，优先用 ask_user 向用户求助，而不是直接 fail；只有在用户明确无法提供帮助或任务本身不可能完成时才用 fail

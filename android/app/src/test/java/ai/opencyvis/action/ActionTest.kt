@@ -212,122 +212,113 @@ class ActionTest {
     }
 
     @Test
-    fun `fromMap throws IllegalArgumentException when tap x is missing`() {
+    fun `fromMap returns Fail when tap x is missing`() {
         val map = mapOf<String, Any?>(
             "action_type" to "tap",
             "y" to 300,
             "thought" to "missing x"
         )
-        val ex = assertThrows(IllegalArgumentException::class.java) {
-            Action.fromMap(map)
-        }
-        assertTrue(ex.message!!.contains("'x'"))
+        val action = Action.fromMap(map)
+        assertTrue(action is Action.Fail)
+        assertTrue((action as Action.Fail).reason.contains("'x'"))
     }
 
     @Test
-    fun `fromMap throws IllegalArgumentException when tap y is missing`() {
+    fun `fromMap returns Fail when tap y is missing`() {
         val map = mapOf<String, Any?>(
             "action_type" to "tap",
             "x" to 300,
             "thought" to "missing y"
         )
-        val ex = assertThrows(IllegalArgumentException::class.java) {
-            Action.fromMap(map)
-        }
-        assertTrue(ex.message!!.contains("'y'"))
+        val action = Action.fromMap(map)
+        assertTrue(action is Action.Fail)
+        assertTrue((action as Action.Fail).reason.contains("'y'"))
     }
 
     @Test
-    fun `fromMap throws IllegalArgumentException when tap x and y are both missing`() {
+    fun `fromMap returns Fail when tap x and y are both missing`() {
         val map = mapOf<String, Any?>(
             "action_type" to "tap",
             "thought" to "no coords"
         )
-        assertThrows(IllegalArgumentException::class.java) {
-            Action.fromMap(map)
-        }
+        val action = Action.fromMap(map)
+        assertTrue(action is Action.Fail)
     }
 
     @Test
-    fun `fromMap throws IllegalArgumentException when tap x is null`() {
+    fun `fromMap returns Fail when tap x is null`() {
         val map = mapOf<String, Any?>(
             "action_type" to "tap",
             "x" to null,
             "y" to 300,
             "thought" to "null x"
         )
-        val ex = assertThrows(IllegalArgumentException::class.java) {
-            Action.fromMap(map)
-        }
-        assertTrue(ex.message!!.contains("'x'"))
+        val action = Action.fromMap(map)
+        assertTrue(action is Action.Fail)
+        assertTrue((action as Action.Fail).reason.contains("'x'"))
     }
 
     @Test
-    fun `fromMap throws IllegalArgumentException when tap y is null`() {
+    fun `fromMap returns Fail when tap y is null`() {
         val map = mapOf<String, Any?>(
             "action_type" to "tap",
             "x" to 300,
             "y" to null,
             "thought" to "null y"
         )
-        val ex = assertThrows(IllegalArgumentException::class.java) {
-            Action.fromMap(map)
-        }
-        assertTrue(ex.message!!.contains("'y'"))
+        val action = Action.fromMap(map)
+        assertTrue(action is Action.Fail)
+        assertTrue((action as Action.Fail).reason.contains("'y'"))
     }
 
     @Test
-    fun `fromMap throws IllegalArgumentException when long_press x is missing`() {
+    fun `fromMap returns Fail when long_press x is missing`() {
         val map = mapOf<String, Any?>(
             "action_type" to "long_press",
             "y" to 200,
             "thought" to "missing x"
         )
-        val ex = assertThrows(IllegalArgumentException::class.java) {
-            Action.fromMap(map)
-        }
-        assertTrue(ex.message!!.contains("'x'"))
+        val action = Action.fromMap(map)
+        assertTrue(action is Action.Fail)
+        assertTrue((action as Action.Fail).reason.contains("'x'"))
     }
 
     @Test
-    fun `fromMap throws IllegalArgumentException when long_press y is missing`() {
+    fun `fromMap returns Fail when long_press y is missing`() {
         val map = mapOf<String, Any?>(
             "action_type" to "long_press",
             "x" to 100,
             "thought" to "missing y"
         )
-        val ex = assertThrows(IllegalArgumentException::class.java) {
-            Action.fromMap(map)
-        }
-        assertTrue(ex.message!!.contains("'y'"))
+        val action = Action.fromMap(map)
+        assertTrue(action is Action.Fail)
+        assertTrue((action as Action.Fail).reason.contains("'y'"))
     }
 
     @Test
-    fun `fromMap throws IllegalArgumentException when long_press x is null`() {
+    fun `fromMap returns Fail when long_press x is null`() {
         val map = mapOf<String, Any?>(
             "action_type" to "long_press",
             "x" to null,
             "y" to 200,
             "thought" to "null x"
         )
-        val ex = assertThrows(IllegalArgumentException::class.java) {
-            Action.fromMap(map)
-        }
-        assertTrue(ex.message!!.contains("'x'"))
+        val action = Action.fromMap(map)
+        assertTrue(action is Action.Fail)
+        assertTrue((action as Action.Fail).reason.contains("'x'"))
     }
 
     @Test
-    fun `fromMap throws IllegalArgumentException when long_press y is null`() {
+    fun `fromMap returns Fail when long_press y is null`() {
         val map = mapOf<String, Any?>(
             "action_type" to "long_press",
             "x" to 100,
             "y" to null,
             "thought" to "null y"
         )
-        val ex = assertThrows(IllegalArgumentException::class.java) {
-            Action.fromMap(map)
-        }
-        assertTrue(ex.message!!.contains("'y'"))
+        val action = Action.fromMap(map)
+        assertTrue(action is Action.Fail)
+        assertTrue((action as Action.Fail).reason.contains("'y'"))
     }
 
     @Test

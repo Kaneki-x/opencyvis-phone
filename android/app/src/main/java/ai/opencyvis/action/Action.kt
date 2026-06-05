@@ -1,5 +1,7 @@
 package ai.opencyvis.action
 
+import android.util.Log
+
 /**
  * Sealed class representing all possible phone actions.
  * Mirrors the Python ActionType enum from actions.py.
@@ -99,7 +101,15 @@ sealed class Action(val typeName: String, open val thought: String) {
          */
         private fun extractInt(value: Any?): Int? = when (value) {
             is Number -> value.toInt()
-            is List<*> -> (value.firstOrNull() as? Number)?.toInt()
+            is String -> value.trim().toIntOrNull() ?: value.trim().toDoubleOrNull()?.toInt()
+            is List<*> -> {
+                val first = value.firstOrNull()
+                when (first) {
+                    is Number -> first.toInt()
+                    is String -> first.trim().toIntOrNull() ?: first.trim().toDoubleOrNull()?.toInt()
+                    else -> null
+                }
+            }
             else -> null
         }
 
@@ -107,91 +117,108 @@ sealed class Action(val typeName: String, open val thought: String) {
             val xVal = map["x"]
             val yVal = map["y"]
             if (xVal is List<*> && xVal.size >= 2 && yVal == null) {
-                return Pair((xVal[0] as? Number)?.toInt(), (xVal[1] as? Number)?.toInt())
+                return Pair(extractInt(xVal[0]), extractInt(xVal[1]))
             }
             return Pair(extractInt(xVal), extractInt(yVal))
         }
 
+        private fun clampCoord(value: Int, axis: String): Int {
+            val clamped = value.coerceIn(0, 1000)
+            if (clamped != value) {
+                Log.w("Action", "Coordinate $axis clamped: $value -> $clamped")
+            }
+            return clamped
+        }
+
         fun fromMap(map: Map<String, Any?>): Action {
             val thought = (map["thought"] as? String) ?: ""
-            val actionType = ((map["action_type"] as? String) ?: "fail").trim()
+            val actionType = ((map["action_type"] as? String) ?: "fail").trim().lowercase()
 
-            return when (actionType) {
-                "tap" -> extractCoords(map).let { (cx, cy) ->
-                    Tap(
-                        x = cx ?: throw IllegalArgumentException("tap action missing required field 'x'"),
-                        y = cy ?: throw IllegalArgumentException("tap action missing required field 'y'"),
+            return try {
+                when (actionType) {
+                    "tap" -> extractCoords(map).let { (cx, cy) ->
+                        val x = cx ?: throw IllegalArgumentException("tap action missing required field 'x'")
+                        val y = cy ?: throw IllegalArgumentException("tap action missing required field 'y'")
+                        Tap(
+                            x = clampCoord(x, "x"),
+                            y = clampCoord(y, "y"),
+                            thought = thought
+                        )
+                    }
+                    "long_press" -> extractCoords(map).let { (cx, cy) ->
+                        val x = cx ?: throw IllegalArgumentException("long_press action missing required field 'x'")
+                        val y = cy ?: throw IllegalArgumentException("long_press action missing required field 'y'")
+                        LongPress(
+                            x = clampCoord(x, "x"),
+                            y = clampCoord(y, "y"),
+                            thought = thought
+                        )
+                    }
+                    "open_app" -> OpenApp(
+                        appName = (map["app_name"] as? String) ?: "",
                         thought = thought
                     )
-                }
-                "long_press" -> extractCoords(map).let { (cx, cy) ->
-                    LongPress(
-                        x = cx ?: throw IllegalArgumentException("long_press action missing required field 'x'"),
-                        y = cy ?: throw IllegalArgumentException("long_press action missing required field 'y'"),
+                    "swipe" -> Swipe(
+                        direction = (map["direction"] as? String) ?: "up",
                         thought = thought
                     )
+                    "key_event" -> KeyEvent(
+                        key = (map["key"] as? String) ?: "back",
+                        thought = thought
+                    )
+                    "type_text" -> TypeText(
+                        text = (map["text"] as? String) ?: "",
+                        thought = thought
+                    )
+                    "wait" -> Wait(thought = thought)
+                    "finish" -> Finish(
+                        thought = thought,
+                        suggestedRoutineName = map["suggested_routine_name"] as? String,
+                        suggestedRoutineIcon = map["suggested_routine_icon"] as? String
+                    )
+                    "fail" -> Fail(
+                        reason = (map["reason"] as? String) ?: "unknown reason",
+                        thought = thought
+                    )
+                    "ask_user" -> AskUser(
+                        question = (map["question"] as? String) ?: thought,
+                        thought = thought
+                    )
+                    "handoff_user" -> HandoffUser(
+                        reason = (map["handoff_reason"] as? String) ?: thought,
+                        thought = thought
+                    )
+                    "note" -> Note(
+                        note = (map["note"] as? String) ?: thought,
+                        thought = thought
+                    )
+                    "remember" -> Remember(
+                        key = (map["memory_key"] as? String) ?: "",
+                        value = (map["memory_value"] as? String) ?: "",
+                        category = (map["memory_category"] as? String) ?: "",
+                        thought = thought
+                    )
+                    "list_apps" -> ListApps(
+                        keyword = (map["keyword"] as? String) ?: "",
+                        thought = thought
+                    )
+                    "save_routine" -> SaveRoutine(
+                        routineName = (map["routine_name"] as? String) ?: "",
+                        routineIcon = (map["routine_icon"] as? String) ?: "⚡",
+                        routineInstruction = map["routine_instruction"] as? String,
+                        scheduleType = map["schedule_type"] as? String,
+                        scheduleTime = map["schedule_time"] as? String,
+                        scheduleRepeat = map["schedule_repeat"] as? String,
+                        scheduleInterval = extractInt(map["schedule_interval"]),
+                        scheduleLocation = map["schedule_location"] as? String,
+                        scheduleOnEnter = map["schedule_on_enter"] as? Boolean,
+                        thought = thought
+                    )
+                    else -> Fail(reason = "Unknown action type: $actionType", thought = thought)
                 }
-                "open_app" -> OpenApp(
-                    appName = (map["app_name"] as? String) ?: "",
-                    thought = thought
-                )
-                "swipe" -> Swipe(
-                    direction = (map["direction"] as? String) ?: "up",
-                    thought = thought
-                )
-                "key_event" -> KeyEvent(
-                    key = (map["key"] as? String) ?: "back",
-                    thought = thought
-                )
-                "type_text" -> TypeText(
-                    text = (map["text"] as? String) ?: "",
-                    thought = thought
-                )
-                "wait" -> Wait(thought = thought)
-                "finish" -> Finish(
-                    thought = thought,
-                    suggestedRoutineName = map["suggested_routine_name"] as? String,
-                    suggestedRoutineIcon = map["suggested_routine_icon"] as? String
-                )
-                "fail" -> Fail(
-                    reason = (map["reason"] as? String) ?: "unknown reason",
-                    thought = thought
-                )
-                "ask_user" -> AskUser(
-                    question = (map["question"] as? String) ?: thought,
-                    thought = thought
-                )
-                "handoff_user" -> HandoffUser(
-                    reason = (map["handoff_reason"] as? String) ?: thought,
-                    thought = thought
-                )
-                "note" -> Note(
-                    note = (map["note"] as? String) ?: thought,
-                    thought = thought
-                )
-                "remember" -> Remember(
-                    key = (map["memory_key"] as? String) ?: "",
-                    value = (map["memory_value"] as? String) ?: "",
-                    category = (map["memory_category"] as? String) ?: "",
-                    thought = thought
-                )
-                "list_apps" -> ListApps(
-                    keyword = (map["keyword"] as? String) ?: "",
-                    thought = thought
-                )
-                "save_routine" -> SaveRoutine(
-                    routineName = (map["routine_name"] as? String) ?: "",
-                    routineIcon = (map["routine_icon"] as? String) ?: "⚡",
-                    routineInstruction = map["routine_instruction"] as? String,
-                    scheduleType = map["schedule_type"] as? String,
-                    scheduleTime = map["schedule_time"] as? String,
-                    scheduleRepeat = map["schedule_repeat"] as? String,
-                    scheduleInterval = (map["schedule_interval"] as? Number)?.toInt(),
-                    scheduleLocation = map["schedule_location"] as? String,
-                    scheduleOnEnter = map["schedule_on_enter"] as? Boolean,
-                    thought = thought
-                )
-                else -> Fail(reason = "Unknown action type: $actionType", thought = thought)
+            } catch (e: Exception) {
+                Log.w("Action", "Action parse error: ${e.message}", e)
+                Fail(reason = "Action parse error: ${e.message}", thought = thought)
             }
         }
     }

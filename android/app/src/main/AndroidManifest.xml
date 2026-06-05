@@ -63,6 +63,7 @@
             android:exported="false"
             android:label="OpenCyvis View"
             android:launchMode="singleTask"
+            android:screenOrientation="portrait"
             android:theme="@style/Theme.OpenCyvis.NoActionBar"
             android:windowSoftInputMode="adjustResize" />
 
