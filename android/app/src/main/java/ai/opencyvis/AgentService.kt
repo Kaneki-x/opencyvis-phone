@@ -562,7 +562,7 @@ class AgentService : Service() {
         when (val decision = guard.evaluate(ai.opencyvis.action.Action.TypeText("京东"), screen)) {
             is ActionRepeatGuard.Decision.Block ->
                 Log.i(TAG, "TEST repeat_guard type_text decision=BLOCK feedback=${decision.feedback}")
-            ActionRepeatGuard.Decision.Allow ->
+            is ActionRepeatGuard.Decision.Allow ->
                 Log.i(TAG, "TEST repeat_guard type_text decision=ALLOW")
         }
     }
@@ -571,10 +571,21 @@ class AgentService : Service() {
         val guard = ActionRepeatGuard()
         val screen = ScreenFingerprint(0x1111111111111111L)
         guard.recordExecuted(ai.opencyvis.action.Action.Tap(500, 600), screen)
-        when (val decision = guard.evaluate(ai.opencyvis.action.Action.Tap(520, 590), screen)) {
+        // The guard nudges the first few near-identical retries toward centre, so
+        // drive the loop until the nudge budget is exhausted and it hard-blocks.
+        var decision: ActionRepeatGuard.Decision = guard.evaluate(ai.opencyvis.action.Action.Tap(520, 590), screen)
+        var loops = 0
+        while (loops < 8) {
+            val current = decision
+            if (current !is ActionRepeatGuard.Decision.Allow) break
+            guard.recordExecuted(current.action, screen)
+            decision = guard.evaluate(ai.opencyvis.action.Action.Tap(520, 590), screen)
+            loops++
+        }
+        when (val d = decision) {
             is ActionRepeatGuard.Decision.Block ->
-                Log.i(TAG, "TEST repeat_guard tap decision=BLOCK feedback=${decision.feedback}")
-            ActionRepeatGuard.Decision.Allow ->
+                Log.i(TAG, "TEST repeat_guard tap decision=BLOCK feedback=${d.feedback}")
+            is ActionRepeatGuard.Decision.Allow ->
                 Log.i(TAG, "TEST repeat_guard tap decision=ALLOW")
         }
     }
@@ -586,7 +597,7 @@ class AgentService : Service() {
         when (val decision = guard.evaluate(ai.opencyvis.action.Action.Tap(520, 590), ScreenFingerprint(-1L))) {
             is ActionRepeatGuard.Decision.Block ->
                 Log.i(TAG, "TEST repeat_guard tap_changed decision=BLOCK feedback=${decision.feedback}")
-            ActionRepeatGuard.Decision.Allow ->
+            is ActionRepeatGuard.Decision.Allow ->
                 Log.i(TAG, "TEST repeat_guard tap_changed decision=ALLOW")
         }
     }

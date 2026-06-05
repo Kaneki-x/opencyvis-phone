@@ -582,4 +582,46 @@ class CoordinateMapperTest {
         assertEquals(100, size.x)
         assertEquals(100, size.y)
     }
+
+    // --- Edge-safety inset for taps (applyEdgeInset = true) ---
+
+    @Test
+    fun `edge inset pulls bottom-right corner tap inward on 1080x2400`() {
+        setupDisplay(1080, 2400)
+        val mapper = mapper()
+        val pixel = mapper.normalizedToPixel(1000, 1000, applyEdgeInset = true)
+        // bottom band = 2400 * 0.018 = 43 -> y capped at 2399 - 43 = 2356
+        // side band   = 1080 * 0.010 = 10 -> x capped at 1079 - 10 = 1069
+        assertEquals(1069, pixel.x)
+        assertEquals(2356, pixel.y)
+    }
+
+    @Test
+    fun `edge inset pulls left edge tap inward but leaves top untouched`() {
+        setupDisplay(1080, 2400)
+        val mapper = mapper()
+        val pixel = mapper.normalizedToPixel(0, 0, applyEdgeInset = true)
+        // x pulled to side band (10), top is intentionally not inset (stays 0)
+        assertEquals(10, pixel.x)
+        assertEquals(0, pixel.y)
+    }
+
+    @Test
+    fun `edge inset leaves interior taps unchanged`() {
+        setupDisplay(1080, 2400)
+        val mapper = mapper()
+        val plain = mapper.normalizedToPixel(500, 500)
+        val inset = mapper.normalizedToPixel(500, 500, applyEdgeInset = true)
+        assertEquals(plain.x, inset.x)
+        assertEquals(plain.y, inset.y)
+    }
+
+    @Test
+    fun `default normalizedToPixel does not apply inset`() {
+        setupDisplay(1080, 2400)
+        val mapper = mapper()
+        val pixel = mapper.normalizedToPixel(1000, 1000)
+        assertEquals(1079, pixel.x)
+        assertEquals(2399, pixel.y)
+    }
 }

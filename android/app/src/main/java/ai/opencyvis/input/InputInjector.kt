@@ -179,7 +179,7 @@ class InputInjector(
      * Tap at normalized coordinates (0-1000).
      */
     fun tap(nx: Int, ny: Int): Boolean {
-        val pixel = coordinateMapper.normalizedToPixel(nx, ny)
+        val pixel = coordinateMapper.normalizedToPixel(nx, ny, applyEdgeInset = true)
         return tapPixel(pixel.x.toFloat(), pixel.y.toFloat())
     }
 
@@ -202,7 +202,7 @@ class InputInjector(
      * Long press at normalized coordinates (0-1000).
      */
     suspend fun longPress(nx: Int, ny: Int, durationMs: Long = 1000): Boolean {
-        val pixel = coordinateMapper.normalizedToPixel(nx, ny)
+        val pixel = coordinateMapper.normalizedToPixel(nx, ny, applyEdgeInset = true)
         val x = pixel.x.toFloat()
         val y = pixel.y.toFloat()
         val downTime = SystemClock.uptimeMillis()

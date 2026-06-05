@@ -45,24 +45,39 @@ class ActionRepeatGuardTest {
     }
 
     @Test
-    fun `nearby repeated tap is blocked when screen is unchanged`() {
-        val guard = ActionRepeatGuard(tapTolerance = 35)
-        guard.recordExecuted(Action.Tap(500, 600), sameScreen)
+    fun `nearby repeated tap is first nudged toward center then blocked`() {
+        val guard = ActionRepeatGuard(tapTolerance = 35, maxTapNudges = 2)
+        // Bottom-right miss (like WeChat 发送): nudges should walk up-left toward centre.
+        guard.recordExecuted(Action.Tap(900, 950), sameScreen)
 
-        val decision = guard.evaluate(Action.Tap(520, 590), sameScreen)
+        val first = guard.evaluate(Action.Tap(905, 945), sameScreen)
+        assertTrue(first is ActionRepeatGuard.Decision.Allow)
+        val nudged1 = (first as ActionRepeatGuard.Decision.Allow).action as Action.Tap
+        assertTrue("nudge should move toward centre", nudged1.x < 900 && nudged1.y < 950)
+        guard.recordExecuted(nudged1, sameScreen)
 
-        assertTrue(decision is ActionRepeatGuard.Decision.Block)
-        assertTrue((decision as ActionRepeatGuard.Decision.Block).feedback.contains("ask_user"))
+        val second = guard.evaluate(Action.Tap(905, 945), sameScreen)
+        assertTrue(second is ActionRepeatGuard.Decision.Allow)
+        val nudged2 = (second as ActionRepeatGuard.Decision.Allow).action as Action.Tap
+        assertTrue("second nudge walks further toward centre", nudged2.x < nudged1.x && nudged2.y < nudged1.y)
+        guard.recordExecuted(nudged2, sameScreen)
+
+        val third = guard.evaluate(Action.Tap(905, 945), sameScreen)
+        assertTrue(third is ActionRepeatGuard.Decision.Block)
+        assertTrue((third as ActionRepeatGuard.Decision.Block).feedback.contains("ask_user"))
     }
 
     @Test
-    fun `nearby repeated tap is allowed when screen changed`() {
+    fun `nearby repeated tap is allowed unchanged when screen changed`() {
         val guard = ActionRepeatGuard(tapTolerance = 35)
         guard.recordExecuted(Action.Tap(500, 600), sameScreen)
 
         val decision = guard.evaluate(Action.Tap(520, 590), changedScreen)
 
         assertTrue(decision is ActionRepeatGuard.Decision.Allow)
+        // A changed screen means progress, so the candidate is executed as-is.
+        val allowed = (decision as ActionRepeatGuard.Decision.Allow).action as Action.Tap
+        assertTrue(allowed.x == 520 && allowed.y == 590)
     }
 
     @Test
@@ -120,10 +135,11 @@ class ActionRepeatGuardTest {
     }
 
     @Test
-    fun `repeated tap after intervening wait is still blocked`() {
+    fun `repeated tap after intervening wait is still recognized as a repeat`() {
         // Scenario: tap(500,600) → wait → tap(500,600)
-        // The wait must not reset the guard's memory of the previous tap,
-        // so the second tap at the same position should be blocked.
+        // The wait must not reset the guard's memory of the previous tap, so the
+        // second tap at the same position is still treated as a repeat (and thus
+        // nudged rather than executed verbatim).
         val guard = ActionRepeatGuard(tapTolerance = 35)
         guard.recordExecuted(Action.Tap(500, 600), sameScreen)
 
@@ -131,10 +147,12 @@ class ActionRepeatGuardTest {
         assertTrue(guard.evaluate(Action.Wait(), sameScreen) is ActionRepeatGuard.Decision.Allow)
         guard.recordExecuted(Action.Wait(), sameScreen)
 
-        // Same-position tap should still be blocked because lastExecutedAction is still the original tap
+        // Same-position tap is recognized as a repeat: it is nudged off the anchor,
+        // proving the wait did not wipe the guard's memory.
         val decision = guard.evaluate(Action.Tap(510, 595), sameScreen)
-        assertTrue(decision is ActionRepeatGuard.Decision.Block)
-        assertTrue((decision as ActionRepeatGuard.Decision.Block).feedback.contains("ask_user"))
+        assertTrue(decision is ActionRepeatGuard.Decision.Allow)
+        val nudged = (decision as ActionRepeatGuard.Decision.Allow).action as Action.Tap
+        assertTrue(nudged.x != 510 || nudged.y != 595)
     }
 
     @Test

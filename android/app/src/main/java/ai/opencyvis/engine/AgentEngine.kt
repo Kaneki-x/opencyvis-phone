@@ -613,10 +613,10 @@ class AgentEngine(
 
                 // === ACT ===
                 val t3 = System.currentTimeMillis()
-                val action = Action.fromMap(resultData)
+                val candidateAction = Action.fromMap(resultData)
                 _state.value = AgentState.Running(step, "Executing: $actionType")
 
-                when (val repeatDecision = actionRepeatGuard.evaluate(action, screenFingerprint)) {
+                val action = when (val repeatDecision = actionRepeatGuard.evaluate(candidateAction, screenFingerprint)) {
                     is ActionRepeatGuard.Decision.Block -> {
                         val totalMs = System.currentTimeMillis() - stepStartTime
                         pendingActionFeedback = repeatDecision.feedback
@@ -624,7 +624,7 @@ class AgentEngine(
                         _stepResults.emit(
                             StepResult(
                                 step = step,
-                                actionType = action.typeName,
+                                actionType = candidateAction.typeName,
                                 thought = thought,
                                 success = false,
                                 detail = repeatDecision.feedback,
@@ -636,7 +636,11 @@ class AgentEngine(
                         delay(300)
                         continue
                     }
-                    ActionRepeatGuard.Decision.Allow -> Unit
+                    is ActionRepeatGuard.Decision.Allow -> repeatDecision.action
+                }
+
+                if (action !== candidateAction) {
+                    Log.i(TAG, "Step $step repeat guard nudged tap: $candidateAction -> $action")
                 }
 
                 val stepResult = actionExecutor.execute(action, step)

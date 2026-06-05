@@ -19,6 +19,16 @@ class CoordinateMapper(
 
     private val windowManager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
 
+    companion object {
+        // Fractions of the display reserved as a "edge safety" band for taps. Taps
+        // landing inside the band are pulled inward to its boundary so they don't
+        // get clipped off a corner button or swallowed by the system gesture
+        // exclusion zones (bottom swipe-up pill, side back-gesture strips). The top
+        // band is intentionally 0 so status-bar / top-app-bar taps stay put.
+        private const val BOTTOM_EDGE_FRACTION = 0.018
+        private const val SIDE_EDGE_FRACTION = 0.010
+    }
+
     constructor(
         context: Context,
         fixedWidth: Int,
@@ -70,8 +80,13 @@ class CoordinateMapper(
     /**
      * Convert normalized coordinates (0-1000) to pixel coordinates.
      * Handles screen rotation so (0,0) is always the visual top-left.
+     *
+     * @param applyEdgeInset when true, taps that land within the bottom/side edge
+     *   safety band are pulled inward so they reliably hit corner buttons instead
+     *   of being clipped or swallowed by system gesture zones. Pass false for
+     *   gestures (e.g. swipes) that legitimately need to reach the edges.
      */
-    fun normalizedToPixel(nx: Int, ny: Int): Point {
+    fun normalizedToPixel(nx: Int, ny: Int, applyEdgeInset: Boolean = false): Point {
         val (width, height) = getDisplayDimensions()
         val rotation = getRotationDegrees()
 
@@ -106,9 +121,18 @@ class CoordinateMapper(
             }
         }
 
+        if (!applyEdgeInset) {
+            return Point().apply {
+                x = pixelX
+                y = pixelY
+            }
+        }
+
+        val sideMargin = (width * SIDE_EDGE_FRACTION).toInt()
+        val bottomMargin = (height * BOTTOM_EDGE_FRACTION).toInt()
         return Point().apply {
-            x = pixelX
-            y = pixelY
+            x = pixelX.coerceIn(sideMargin, (width - 1 - sideMargin).coerceAtLeast(sideMargin))
+            y = pixelY.coerceAtMost((height - 1 - bottomMargin).coerceAtLeast(0))
         }
     }
 
