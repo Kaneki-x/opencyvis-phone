@@ -100,13 +100,7 @@ class VdAccessibilityService : AccessibilityService() {
             val sb = StringBuilder()
             var nodeCount = 0
 
-            Log.i(TAG, "captureViewTree(display=$displayId): ${windowsMap.size} window(s); " +
-                windowsMap.joinToString(", ") { w ->
-                    val r = w.getRoot(0)
-                    val info = "pkg=${r?.packageName} displayId=${runCatching { w.javaClass.getMethod("getDisplayId").invoke(w) }.getOrNull()}"
-                    r?.recycle()
-                    info
-                })
+            Log.i(TAG, "captureViewTree(display=$displayId): ${windowsMap.size} window(s)")
 
             for (window in windowsMap) {
                 val root = window.getRoot(AccessibilityNodeInfo.FLAG_PREFETCH_DESCENDANTS_HYBRID)
@@ -118,8 +112,12 @@ class VdAccessibilityService : AccessibilityService() {
                     continue
                 }
 
+                val before = nodeCount
+                val rootVisible = root.isVisibleToUser
+                val rootChildren = root.childCount
                 traverseNode(root, 0, sb, displayWidth, displayHeight,
                     nodeCount = { nodeCount }, incCount = { nodeCount++ })
+                Log.i(TAG, "  window pkg=$packageName visibleRoot=$rootVisible childCount=$rootChildren emitted=${nodeCount - before}")
                 root.recycle()
             }
 
