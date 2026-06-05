@@ -43,6 +43,11 @@ class ActionRepeatGuard(
     private var tapAnchor: Pair<Int, Int>? = null
     private var tapNudgeCount: Int = 0
 
+    // A tap that was immediately undone by Back. Re-tapping it tends to repeat the
+    // same wrong navigation (e.g. WeChat's "+" grid: hitting 红包 instead of 相册,
+    // backing out, then tapping the same spot again).
+    private var lastRevertedTap: Pair<Int, Int>? = null
+
     fun evaluate(candidate: Action, currentScreen: ScreenFingerprint?): Decision {
         if (candidate is Action.Wait) return Decision.Allow(candidate)
         val previous = lastExecutedAction ?: return allowOriginal(candidate)
@@ -55,6 +60,18 @@ class ActionRepeatGuard(
         }
 
         val candidatePoint = tapPoint(candidate)
+
+        // Re-tapping a spot that was undone by Back repeats the same wrong
+        // navigation. Warn once (then forget) so the model re-examines and picks a
+        // different element instead of bouncing in and out of the wrong screen.
+        if (candidatePoint != null) {
+            val reverted = lastRevertedTap
+            if (reverted != null && near(candidatePoint, reverted)) {
+                lastRevertedTap = null
+                return block(LlmPrompts.guardFeedback("reverted_tap"))
+            }
+        }
+
         if (candidatePoint != null && screenLooksUnchanged(currentScreen)) {
             val reference = tapAnchor ?: tapPoint(previous)
             if (reference != null && near(candidatePoint, reference)) {
@@ -76,6 +93,15 @@ class ActionRepeatGuard(
     fun recordExecuted(action: Action, screenBeforeAction: ScreenFingerprint?) {
         if (action is Action.Wait) {
             return
+        }
+        val previousPoint = tapPoint(lastExecutedAction)
+        when {
+            // Back right after a tap: remember that tap as a "wrong" target.
+            isBackKey(action) -> if (previousPoint != null) lastRevertedTap = previousPoint
+            // A tap elsewhere means the model moved on — forget the reverted spot.
+            else -> tapPoint(action)?.let { p ->
+                if (lastRevertedTap?.let { !near(p, it) } == true) lastRevertedTap = null
+            }
         }
         lastExecutedAction = action
         lastScreenBeforeAction = screenBeforeAction
@@ -111,12 +137,16 @@ class ActionRepeatGuard(
                 candidate.key.equals("enter", ignoreCase = true)
     }
 
+    private fun isBackKey(action: Action): Boolean {
+        return action is Action.KeyEvent && action.key.equals("back", ignoreCase = true)
+    }
+
     private fun near(a: Pair<Int, Int>, b: Pair<Int, Int>): Boolean {
         return abs(a.first - b.first) <= tapTolerance &&
                 abs(a.second - b.second) <= tapTolerance
     }
 
-    private fun tapPoint(action: Action): Pair<Int, Int>? {
+    private fun tapPoint(action: Action?): Pair<Int, Int>? {
         return when (action) {
             is Action.Tap -> action.x to action.y
             is Action.LongPress -> action.x to action.y

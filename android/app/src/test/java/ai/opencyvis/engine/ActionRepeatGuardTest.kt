@@ -171,6 +171,42 @@ class ActionRepeatGuardTest {
     }
 
     @Test
+    fun `re-tapping a back-undone location is blocked once`() {
+        val guard = ActionRepeatGuard()
+        // Tap C opened the wrong screen, then Back reverted it.
+        guard.recordExecuted(Action.Tap(156, 811), sameScreen)
+        guard.recordExecuted(Action.KeyEvent("back"), changedScreen)
+
+        // Re-tapping nearly the same spot is blocked with guidance to pick another.
+        val blocked = guard.evaluate(Action.Tap(155, 813), changedScreen)
+        assertTrue(blocked is ActionRepeatGuard.Decision.Block)
+
+        // Warned once: if the model insists, it is no longer blocked on this spot.
+        val allowedAgain = guard.evaluate(Action.Tap(155, 813), changedScreen)
+        assertTrue(allowedAgain is ActionRepeatGuard.Decision.Allow)
+    }
+
+    @Test
+    fun `tapping a different element after back is allowed`() {
+        val guard = ActionRepeatGuard()
+        guard.recordExecuted(Action.Tap(156, 811), sameScreen)
+        guard.recordExecuted(Action.KeyEvent("back"), changedScreen)
+
+        // A clearly different target (different row) is allowed as-is.
+        val decision = guard.evaluate(Action.Tap(153, 691), changedScreen)
+        assertTrue(decision is ActionRepeatGuard.Decision.Allow)
+    }
+
+    @Test
+    fun `back not preceded by a tap does not arm the reverted guard`() {
+        val guard = ActionRepeatGuard()
+        guard.recordExecuted(Action.KeyEvent("back"), sameScreen)
+
+        val decision = guard.evaluate(Action.Tap(155, 813), changedScreen)
+        assertTrue(decision is ActionRepeatGuard.Decision.Allow)
+    }
+
+    @Test
     fun `screen fingerprints tolerate small hamming differences`() {
         val base = ScreenFingerprint(0b101010L)
         val oneBitDifferent = ScreenFingerprint(0b101011L)

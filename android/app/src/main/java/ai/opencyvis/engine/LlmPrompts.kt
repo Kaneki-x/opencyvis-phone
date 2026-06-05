@@ -50,6 +50,7 @@ Efficiency principles:
 - Try to accomplish as much as possible in each step to minimize total steps
 - When the task is done, you MUST use action_type=finish. Do not assume a tap/type_text will succeed — verify the result first
 - If the screen hasn't changed after two consecutive operations, the operation may be ineffective — try a different approach (e.g., use type_text instead of tap)
+- If a tap opened the WRONG screen and you went back, do NOT tap the same coordinate again — re-examine the screen and pick a different element/position (in icon grids the row/column may be off by one)
 
 Memory rules:
 - For temporary task info (e.g., prices found during comparison, page state), use note in 'key: value' format — visible only in subsequent steps of the current task.
@@ -85,6 +86,7 @@ Routine & schedule rules:
 - 每一步尽量完成尽可能多的工作，减少总步数
 - 任务完成时，必须使用 action_type=finish。不要假设一次 tap/type_text 就能成功 — 先验证结果
 - 如果连续两步操作后屏幕没有变化，说明操作可能无效，请换一种方式（比如用 type_text 代替 tap）
+- 如果某次点击进入了错误页面、你已返回，不要再点几乎相同的坐标——重新看清屏幕，选择不同的元素/位置（宫格图标可能差一行/一列）
 
 记忆规则：
 - 临时任务信息（如本轮比价中查到的价格、页面状态）用 note，格式为 'key: value'，只在当前任务后续步骤可见。
@@ -171,6 +173,7 @@ Routine & schedule rules:
         "repeated_type_text" to "The same text was already typed in the previous step. Do not repeat the same input.",
         "repeated_submit" to "The same submit key was already pressed in the previous step, and the screen has not changed significantly.",
         "repeated_tap" to "Nearly the same position was already tapped in the previous step, and the screen has not changed significantly.",
+        "reverted_tap" to "Tapping this spot before opened the wrong screen and you went back. Do NOT tap the same place again — look carefully and choose a different element or position.",
         "escalation_high" to " If there might be a system confirmation, permission, installation, or external dialog not visible in the virtual display, please use ask_user to ask the user for help.",
         "escalation_low" to " Please try a different strategy; if you need user confirmation, use ask_user."
     )
@@ -179,6 +182,7 @@ Routine & schedule rules:
         "repeated_type_text" to "上一步已经输入过相同文本，不要重复执行同一输入。",
         "repeated_submit" to "上一步已经执行过相同的提交按键，当前屏幕没有明显变化。",
         "repeated_tap" to "上一步已经点击过几乎相同的位置，当前屏幕没有明显变化。",
+        "reverted_tap" to "之前点击这个位置进入了错误页面、你已返回。不要再点几乎相同的位置——请仔细看清后选择不同的元素或位置。",
         "escalation_high" to " 如果可能存在虚拟显示器看不到的系统确认、权限、安装或外部弹窗，请使用 ask_user 向用户求助。",
         "escalation_low" to " 请换一种策略；如果需要用户确认，请使用 ask_user。"
     )
