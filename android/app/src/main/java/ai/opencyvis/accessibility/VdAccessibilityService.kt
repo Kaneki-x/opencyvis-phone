@@ -100,6 +100,14 @@ class VdAccessibilityService : AccessibilityService() {
             val sb = StringBuilder()
             var nodeCount = 0
 
+            Log.i(TAG, "captureViewTree(display=$displayId): ${windowsMap.size} window(s); " +
+                windowsMap.joinToString(", ") { w ->
+                    val r = w.getRoot(0)
+                    val info = "pkg=${r?.packageName} displayId=${runCatching { w.javaClass.getMethod("getDisplayId").invoke(w) }.getOrNull()}"
+                    r?.recycle()
+                    info
+                })
+
             for (window in windowsMap) {
                 val root = window.getRoot(AccessibilityNodeInfo.FLAG_PREFETCH_DESCENDANTS_HYBRID)
                     ?: continue

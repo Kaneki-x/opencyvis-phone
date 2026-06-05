@@ -336,7 +336,7 @@ class AgentEngine(
                     }
                 } else null
                 if (viewTree != null) {
-                    Log.i(TAG, "Step $step ViewTree: ${viewTree.length} chars, ${viewTree.lines().size} nodes")
+                    Log.i(TAG, "Step $step ViewTree: ${viewTree.length} chars, ${viewTree.lines().size} nodes\n${viewTree.take(600)}")
                 } else if (viewTreeProvider != null) {
                     Log.w(TAG, "Step $step ViewTree: null (a11y element tree unavailable — model is guessing from the screenshot only)")
                 }
